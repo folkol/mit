@@ -8,11 +8,14 @@ CFLAGS=-c -Wall
 
 all: mit
 
-mit: mit.o
-	$(CC) mit.o -o mit
+mit:  mit_opts.o mit.o
+	$(CC) mit.o mit_opts.o -o mit
 
-mit_core.o: mit.c
+mit.o: mit.c
 	$(CC) $(CFLAGS) mit.c
+
+mit_opts.o: mit_opts.c
+	$(CC) $(CFLAGS) mit_opts.c
 
 clean:
 	rm -rf mit *.o
