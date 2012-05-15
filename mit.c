@@ -16,6 +16,7 @@ void command_status();
 void command_add(int num_args, char** args);
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
+void get_object_hash(char* object_hash, FILE* data);
 
 int main(int num_args, char** args) {
   if (num_args < 2) {
@@ -52,6 +53,7 @@ void usage() {
   exit(0);
 }
 
+
 void assert_mit_repo() {
   DIR* mit_repo = opendir("./.mit");
   if(!mit_repo) {
@@ -86,7 +88,6 @@ void get_current_branch(char* current_branch) {
 void command_init() {
   printf("Initializing mit repository!\n");
   mkdir("./.mit", 0777);
-  mkdir("./.mit/index", 0777);
   mkdir("./.mit/objects", 0777);
   mkdir("./.mit/refs", 0777);
   mkdir("./.mit/refs/heads", 0777);
@@ -109,7 +110,6 @@ void command_add(int num_opts, char** opts) {
   char object_hash[41];
   for(c = 0; c < num_opts; c++) {
     store_blob(object_hash, opts[c]);
-    printf("Adding %s (%s) to the index\n", opts[c], object_hash);
   }
 }
 
@@ -122,22 +122,49 @@ void store_blob(char* object_hash, const char* filename) {
   }
   store_object(object_hash, file);
   fclose(file);
-  return object_hash;
+
+  FILE* index_file;
+  if (!(index_file = fopen("./.mit/index","wa"))) {
+    fprintf(stderr,
+            "sha: unable to open the index file %s\n",
+            filename);
+  }
+  printf("Adding %s (%s) to the index\n", filename, object_hash);
+  fprintf(index_file, "Filename\t%s\t%s\n", filename, object_hash);
+  fclose(index_file);
 }
 
 void store_object(char* object_hash, FILE* content) {
+  get_object_hash(object_hash, content);
+
+  char object_filename[13+41];
+  sprintf(object_filename, ".mit/objects/%s", object_hash);
+
+  FILE* object_file = fopen(object_filename, "w");
+  char        c;                  /* Character read from file      */
+
+  c = fgetc(content);
+  while(!feof(content)) {
+    printf("Adding char: %c", c);
+    fputc(c, object_file);
+    c = fgetc(content);
+  }
+
+  fclose(object_file);
+}
+
+
+void get_object_hash(char* object_hash, FILE* data) {
   SHA1Context sha;                /* SHA-1 context                 */
   char        c;                  /* Character read from file      */
 
   SHA1Reset(&sha);
 
-  c = fgetc(content);
-  while(!feof(content)) {
+  c = fgetc(data);
+  while(!feof(data)) {
     SHA1Input(&sha, &c, 1);
-    c = fgetc(content);
+    c = fgetc(data);
   }
-
-  rewind(content);
 
   if (!SHA1Result(&sha)) {
     fprintf(stderr, "sha: could not compute message digest");
@@ -150,10 +177,5 @@ void store_object(char* object_hash, FILE* content) {
             sha.Message_Digest[4]);
   }
 
-  char* object_filename = (char*) malloc(15+41);
-  sprintf(object_filename, "./.mit/objects/%s", object_hash);
-
-  FILE* object_file = fopen(object_filename, "w");
-  free(object_filename);
-  object_filename = NULL;
+  rewind(data);
 }
