@@ -91,6 +91,14 @@ void command_init() {
   mkdir("./.mit/objects", 0777);
   mkdir("./.mit/refs", 0777);
   mkdir("./.mit/refs/heads", 0777);
+
+  FILE* file;
+  if (!(file = fopen("./.mit/HEAD","w"))) {
+    fprintf(stderr, "Unable to create the HEAD file");
+  }
+  fprintf(file, "refs/heads/master\n");
+  fclose(file);
+  file = NULL;
 }
 
 
@@ -124,7 +132,7 @@ void store_blob(char* object_hash, const char* filename) {
   fclose(file);
 
   FILE* index_file;
-  if (!(index_file = fopen("./.mit/index","wa"))) {
+  if (!(index_file = fopen("./.mit/index","a"))) {
     fprintf(stderr,
             "sha: unable to open the index file %s\n",
             filename);
@@ -145,7 +153,6 @@ void store_object(char* object_hash, FILE* content) {
 
   c = fgetc(content);
   while(!feof(content)) {
-    printf("Adding char: %c", c);
     fputc(c, object_file);
     c = fgetc(content);
   }
