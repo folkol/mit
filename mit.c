@@ -120,12 +120,6 @@ char* store_blob(const char* filename) {
   int         reading_stdin;      /* Are we reading standard in?   */
   int         read_stdin = 0;     /* Have we read stdin?           */
 
-  char sha_part_one[9];
-  char sha_part_two[9];
-  char sha_part_three[9];
-  char sha_part_four[9];
-  char sha_part_five[9];
-
   char object_hash[41];
 
   if (!(fp = fopen(filename,"rb")))
@@ -135,9 +129,6 @@ char* store_blob(const char* filename) {
               filename);
     }
 
-  /*
-   *  Reset the SHA-1 context and process input
-   */
   SHA1Reset(&sha);
 
   c = fgetc(fp);
@@ -160,17 +151,15 @@ char* store_blob(const char* filename) {
     }
   else
     {
-      sprintf(sha_part_one, "%08X", sha.Message_Digest[0]);
-      sprintf(sha_part_two, "%08X", sha.Message_Digest[1]);
-      sprintf(sha_part_three, "%08X", sha.Message_Digest[2]);
-      sprintf(sha_part_four, "%08X", sha.Message_Digest[3]);
-      sprintf(sha_part_five, "%08X", sha.Message_Digest[4]);
+      sprintf(object_hash, "%08x%08x%08x%08x%08x",
+              sha.Message_Digest[0],
+              sha.Message_Digest[1],
+              sha.Message_Digest[2],
+              sha.Message_Digest[3],
+              sha.Message_Digest[4]);
     }
 
   fclose(fp);
-
-
-  sprintf(object_hash, "%s%s%s%s%s", sha_part_one, sha_part_two, sha_part_three, sha_part_four, sha_part_five);
 
   printf("The calculated object hash is: %s\n", object_hash);
 }
