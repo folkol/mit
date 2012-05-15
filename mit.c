@@ -10,11 +10,12 @@
 
 void usage();
 void assert_mit_repo();
-char* get_current_branch();
+void get_current_branch(char* branch_name);
 void command_init();
 void command_status();
 void command_add(int num_args, char** args);
-char* store_blob(const char* filename);
+void store_blob(char* object_hash, const char* filename);
+void store_object(char* object_hash, FILE* file);
 
 int main(int num_args, char** args) {
   if (num_args < 2) {
@@ -77,8 +78,8 @@ void parse_directory(const char* dir) {
 }
 
 
-char* get_current_branch() {
-  return "master";
+void get_current_branch(char* current_branch) {
+  sprintf(current_branch, "master");
 }
 
 
@@ -93,7 +94,8 @@ void command_init() {
 
 
 void command_status() {
-  char* current_branch = get_current_branch();
+  char current_branch[255];
+  get_current_branch(current_branch);
   printf("# On branch %s\n", current_branch);
   printf("# Changes to be committed:\n");
   printf("#\n");
@@ -103,63 +105,55 @@ void command_status() {
 
 
 void command_add(int num_opts, char** opts) {
-  printf("Updating index...\n");
   int c = 0;
+  char object_hash[41];
   for(c = 0; c < num_opts; c++) {
-    printf("Updating index for %s\n", opts[c]);
-    store_blob(opts[c]);
+    store_blob(object_hash, opts[c]);
+    printf("Adding %s (%s) to the index\n", opts[c], object_hash);
   }
 }
 
+void store_blob(char* object_hash, const char* filename) {
+  FILE* file;
+  if (!(file = fopen(filename,"rb"))) {
+    fprintf(stderr,
+            "sha: unable to open file %s\n",
+            filename);
+  }
+  store_object(object_hash, file);
+  fclose(file);
+  return object_hash;
+}
 
-char* store_blob(const char* filename) {
+void store_object(char* object_hash, FILE* content) {
   SHA1Context sha;                /* SHA-1 context                 */
-  FILE        *fp;                /* File pointer for reading files*/
   char        c;                  /* Character read from file      */
-  int         i;                  /* Counter                       */
-  int         reading_stdin;      /* Are we reading standard in?   */
-  int         read_stdin = 0;     /* Have we read stdin?           */
-
-  char object_hash[41];
-
-  if (!(fp = fopen(filename,"rb")))
-    {
-      fprintf(stderr,
-              "sha: unable to open file %s\n",
-              filename);
-    }
 
   SHA1Reset(&sha);
 
-  c = fgetc(fp);
-  while(!feof(fp))
-    {
-      SHA1Input(&sha, &c, 1);
-      c = fgetc(fp);
-    }
+  c = fgetc(content);
+  while(!feof(content)) {
+    SHA1Input(&sha, &c, 1);
+    c = fgetc(content);
+  }
 
-  if (!reading_stdin)
-    {
-      fclose(fp);
-    }
+  rewind(content);
 
-  if (!SHA1Result(&sha))
-    {
-      fprintf(stderr,
-              "sha: could not compute message digest for %s\n",
-              filename);
-    }
-  else
-    {
-      sprintf(object_hash, "%08x%08x%08x%08x%08x",
-              sha.Message_Digest[0],
-              sha.Message_Digest[1],
-              sha.Message_Digest[2],
-              sha.Message_Digest[3],
-              sha.Message_Digest[4]);
-    }
+  if (!SHA1Result(&sha)) {
+    fprintf(stderr, "sha: could not compute message digest");
+  } else {
+    sprintf(object_hash, "%08x%08x%08x%08x%08x",
+            sha.Message_Digest[0],
+            sha.Message_Digest[1],
+            sha.Message_Digest[2],
+            sha.Message_Digest[3],
+            sha.Message_Digest[4]);
+  }
 
-  fclose(fp);
+  char* object_filename = (char*) malloc(15+41);
+  sprintf(object_filename, "./.mit/objects/%s", object_hash);
 
-  printf("The calculated object hash is: %s\n", object_hash);
+  FILE* object_file = fopen(object_filename, "w");
+  free(object_filename);
+  object_filename = NULL;
 }
