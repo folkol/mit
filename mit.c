@@ -203,7 +203,10 @@ void command_checkout(int num_args, char** args) {
     printf("usage: mit checkout <filename>\n");
     exit(-1);
   }
-  command_checkout_single_entry(args[0]);
+
+  for(c = 0; c < num_args; c++) {
+    command_checkout_single_entry(args[c]);
+  }
 }
 
 
@@ -352,6 +355,7 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   char index_entry_filename[1024];
   int line_length;
   bool hash_found = false;
+  int chars_to_read;
 
   char branch_name[1024];
   
@@ -359,7 +363,7 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
 
   char branch_head_filename[1024];
   sprintf(branch_head_filename, ".mit/%s", branch_name);
-  fprintf(stderr, "Current HEAD filename: %s\n", branch_head_filename);
+  fprintf(stderr, "Current HEAD filename: [%s]\n", branch_head_filename);
   
   if (!(file = fopen(branch_head_filename,"r"))) {
     fprintf(stderr, "Branch not found: %s\n", branch_name);
@@ -367,7 +371,9 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   } else {
     while(fgets(buffer, buffer_size, file)) {
       line_length = strlen(buffer);
-      strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
+      chars_to_read = line_length - prefix_length - 1 - 40 - 1;
+      strncpy(index_entry_filename, &buffer[9], chars_to_read);
+      index_entry_filename[chars_to_read] = '\0';
       if(strcmp(index_entry_filename, filename) == 0) {
         strncpy(object_hash, &buffer[line_length - 41], 40);
         hash_found = true;
