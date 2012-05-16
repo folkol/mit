@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <stdbool.h>
-
+#include <errno.h>
 #include "sha1.h"
 
 void usage();
@@ -131,7 +131,7 @@ void command_init() {
   if (!(file = fopen("./.mit/HEAD","w"))) {
     fprintf(stderr, "Unable to create the HEAD file");
   }
-  fprintf(file, "refs/heads/master\n");
+  fprintf(file, "refs/heads/master");
   fclose(file);
   file = NULL;
 }
@@ -214,7 +214,8 @@ void command_checkout_single_entry(char* filename) {
   hash_found = get_hash_from_index(object_hash, filename);
 
   if(!hash_found) {
-    get_hash_from_head(object_hash, filename);
+    printf("File not found in index, trying HEAD...\n");
+    hash_found = get_hash_from_head(object_hash, filename);
   }
 
   if(!hash_found) {
@@ -319,22 +320,25 @@ bool get_hash_from_index(char* object_hash, const char* filename) {
   char index_entry_filename[1024];
   int line_length;
   bool hash_found = false;
+  int chars_to_read;
 
   if (!(file = fopen("./.mit/index","r"))) {
-    fprintf(stderr, "Unable to read the index file");
-  }
-
-  while(fgets(buffer, buffer_size, file)) {
-    line_length = strlen(buffer);
-    strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
-    if(strcmp(index_entry_filename, filename) == 0) {
-      strncpy(object_hash, &buffer[line_length - 41], 40);
-      hash_found = true;
+    fprintf(stderr, "Unable to read the index file\n");
+  } else {
+    while(fgets(buffer, buffer_size, file)) {
+      line_length = strlen(buffer);
+      chars_to_read = line_length - prefix_length - 1 - 40 - 1;
+      strncpy(index_entry_filename, &buffer[9], chars_to_read);
+      index_entry_filename[chars_to_read] = '\0';
+      if(strcmp(index_entry_filename, filename) == 0) {
+        strncpy(object_hash, &buffer[line_length - 41], 40);
+        hash_found = true;
+      }
     }
-  }
 
-  fclose(file);
-  file = NULL;
+    fclose(file);
+    file = NULL;
+  }
 
   return hash_found;
 }
@@ -354,10 +358,12 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   get_current_branch(branch_name);
 
   char branch_head_filename[1024];
-  sprintf(branch_head_filename, "./mit/%s", branch_name);
+  sprintf(branch_head_filename, ".mit/%s", branch_name);
+  fprintf(stderr, "Current HEAD filename: %s\n", branch_head_filename);
   
   if (!(file = fopen(branch_head_filename,"r"))) {
-    fprintf(stderr, "Branch not found: %s", branch_name);
+    fprintf(stderr, "Branch not found: %s\n", branch_name);
+    printf("Error opening file [%s]: %s\n", branch_head_filename, strerror(errno));
   } else {
     while(fgets(buffer, buffer_size, file)) {
       line_length = strlen(buffer);
