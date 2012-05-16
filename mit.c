@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <unistd.h>
 #include "sha1.h"
 
 void usage();
@@ -169,7 +170,9 @@ void command_restore(int num_args, char** args) {
     printf("usage: mit restore <object_hash> <filename>\n");
     exit(-1);
   }
-  command_restore_single_entry(args[0], args[1]);
+  for(c = 0; c < num_args; c++) {
+    command_restore_single_entry(args[0], args[1]);
+  }
 }
 
 
@@ -263,7 +266,6 @@ void store_blob(char* object_hash, const char* filename) {
             "sha: unable to open the index file %s\n",
             filename);
   }
-  printf("Adding %s (%s) to the index\n", filename, object_hash);
   fprintf(index_file, "Filename %s %s\n", filename, object_hash);
   fclose(index_file);
 }
@@ -290,13 +292,14 @@ void store_object(char* object_hash, FILE* content) {
 
 void get_object_hash(char* object_hash, FILE* data) {
   SHA1Context sha;                /* SHA-1 context                 */
-  char        c;                  /* Character read from file      */
+  unsigned char        c;                  /* Character read from file      */
+  unsigned int num_chars_to_read = 1;
 
   SHA1Reset(&sha);
 
   c = fgetc(data);
   while(!feof(data)) {
-    SHA1Input(&sha, &c, 1);
+    SHA1Input(&sha, &c, num_chars_to_read);
     c = fgetc(data);
   }
 
@@ -394,15 +397,12 @@ void print_index_contents() {
   char buffer[buffer_size];
   char index_entry_filename[1024];
   int line_length;
-  bool hash_found = false;
   int chars_to_read;
-  char* current_index_content[41];
-  char* current_head_hash[41];
+  char current_index_content[41];
+  char current_head_hash[41];
   bool hash_found_in_head = false;
   bool print_header = true;
 
-  char branch_name[1024];
-  
   if (!(file = fopen(".mit/index","r"))) {
   } else {
     while(fgets(buffer, buffer_size, file)) {
@@ -436,13 +436,12 @@ void print_index_contents() {
   }
 
   if(print_header) {
-    printf("Nothing to commit\n", branch_name);
+    printf("Nothing to commit\n");
   }
 }
 
 
 void command_commit() {
-  char head_filename[1024];
   char branch_name[1024];
   char branch_head_filename[1024];
 
