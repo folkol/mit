@@ -15,8 +15,8 @@ void command_init();
 void command_status();
 void command_add(int num_args, char** args);
 void command_add_single_entry(char* object_hash, char* filename);
-void command_checkout(int num_args, char** args);
-void command_checkout_single_entry(char* object_hash, char* args);
+void command_restore(int num_args, char** args);
+void command_restore_single_entry(char* object_hash, char* args);
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
@@ -42,8 +42,8 @@ int main(int num_args, char** args) {
       add_opts = &args[2];
     }
     command_add(num_args-2, &args[2]);
-  } else if(strcmp(next_command, "checkout") == 0) {
-    command_checkout(num_args-2, &args[2]);
+  } else if(strcmp(next_command, "restore") == 0) {
+    command_restore(num_args-2, &args[2]);
   }else {
     printf("%s is not a mit command!\n", next_command);
     usage();
@@ -101,7 +101,19 @@ void parse_directory(const char* dir) {
 
 
 void get_current_branch(char* current_branch) {
-  sprintf(current_branch, "master");
+  FILE* file;
+  int buffer_size = 255;
+  char buffer[buffer_size];
+  if (!(file = fopen("./.mit/HEAD","r"))) {
+    fprintf(stderr, "Unable to read the HEAD file");
+  }
+
+  fgets(buffer, buffer_size, file);
+
+  fclose(file);
+  file = NULL;
+  
+  sprintf(current_branch, "%s", buffer);
 }
 
 
@@ -146,18 +158,18 @@ void command_add_single_entry(char* object_hash, char* filename) {
 }
 
 
-void command_checkout(int num_args, char** args) {
+void command_restore(int num_args, char** args) {
   int c = 0;
   if(num_args < 2) {
     printf("Too few arguments!\n");
-    printf("usage: mit checkout <object_hash> <filename>\n");
+    printf("usage: mit restore <object_hash> <filename>\n");
     exit(-1);
   }
-  command_checkout_single_entry(args[0], args[1]);
+  command_restore_single_entry(args[0], args[1]);
 }
 
 
-void command_checkout_single_entry(char* object_hash, char* filename) {
+void command_restore_single_entry(char* object_hash, char* filename) {
   char object_filename[13+41];
 
   sprintf(object_filename, ".mit/objects/%s", object_hash);
