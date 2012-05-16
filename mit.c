@@ -20,6 +20,7 @@ void command_restore(int num_args, char** args);
 void command_restore_single_entry(char* object_hash, char* args);
 void command_checkout(int num_args, char** args);
 void command_checkout_single_entry(char* filename);
+void command_commit();
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
@@ -48,6 +49,8 @@ int main(int num_args, char** args) {
     command_restore(num_args-2, &args[2]);
   } else if(strcmp(next_command, "checkout") == 0) {
     command_checkout(num_args-2, &args[2]);
+  } else if(strcmp(next_command, "commit") == 0) {
+    command_commit();
   } else {
     printf("%s is not a mit command!\n", next_command);
     usage();
@@ -413,4 +416,40 @@ void print_index_contents() {
     fclose(file);
     file = NULL;
   }
+}
+
+
+
+void command_commit() {
+  char head_filename[1024];
+  char branch_name[1024];
+  char branch_head_filename[1024];  
+
+  get_current_branch(branch_name);
+
+  sprintf(branch_head_filename, ".mit/%s", branch_name);
+  fprintf(stderr, "Current HEAD filename: [%s]\n", branch_head_filename);
+
+  FILE* index_file = fopen(".mit/index", "r");
+  if(!index_file) {
+    printf("No indexfile found\n");
+    return;
+  }
+
+  FILE* head_file = fopen(branch_head_filename, "w");
+  if(!head_file) {
+    printf("Could not open headfile\n");
+    return;
+  }
+  char        c;                  /* Character read from file      */
+
+  c = fgetc(index_file);
+  while(!feof(index_file)) {
+    fputc(c, head_file);
+    c = fgetc(index_file);
+  }
+
+  fclose(index_file);
+  fclose(head_file);
+  unlink(".mit/index");
 }
