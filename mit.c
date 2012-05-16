@@ -15,6 +15,8 @@ void command_init();
 void command_status();
 void command_add(int num_args, char** args);
 void command_add_single_entry(char* object_hash, char* filename);
+void command_checkout(int num_args, char** args);
+void command_checkout_single_entry(char* object_hash, char* args);
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
@@ -40,13 +42,30 @@ int main(int num_args, char** args) {
       add_opts = &args[2];
     }
     command_add(num_args-2, &args[2]);
-  } else {
+  } else if(strcmp(next_command, "checkout") == 0) {
+    command_checkout(num_args-2, &args[2]);
+  }else {
     printf("%s is not a mit command!\n", next_command);
     usage();
   }
   
   return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 void usage() {
@@ -126,6 +145,42 @@ void command_add_single_entry(char* object_hash, char* filename) {
     store_blob(object_hash, filename);
 }
 
+
+void command_checkout(int num_args, char** args) {
+  int c = 0;
+  if(num_args < 2) {
+    printf("Too few arguments!\n");
+    printf("usage: mit checkout <object_hash> <filename>\n");
+    exit(-1);
+  }
+  command_checkout_single_entry(args[0], args[1]);
+}
+
+
+void command_checkout_single_entry(char* object_hash, char* filename) {
+  char object_filename[13+41];
+
+  sprintf(object_filename, ".mit/objects/%s", object_hash);
+  FILE* blob_file = fopen(object_filename, "r");
+  if(!blob_file) {
+    printf("The file is not currently under version control!\n");
+    return;
+  }
+
+  FILE* target_file = fopen(filename, "w");
+  char        c;                  /* Character read from file      */
+
+  c = fgetc(blob_file);
+  while(!feof(blob_file)) {
+    fputc(c, target_file);
+    c = fgetc(blob_file);
+  }
+
+  fclose(target_file);
+  fclose(blob_file);
+}
+
+
 void store_blob(char* object_hash, const char* filename) {
   FILE* file;
   if (!(file = fopen(filename,"rb"))) {
@@ -146,6 +201,7 @@ void store_blob(char* object_hash, const char* filename) {
   fprintf(index_file, "Filename\t%s\t%s\n", filename, object_hash);
   fclose(index_file);
 }
+
 
 void store_object(char* object_hash, FILE* content) {
   get_object_hash(object_hash, content);
