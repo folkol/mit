@@ -25,6 +25,7 @@ void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
 bool get_hash_from_index(char* object_hash, const char* filename);
 bool get_hash_from_head(char* object_hash, const char* filename);
+void print_index_contents();
 
 int main(int num_args, char** args) {
   if (num_args < 2) {
@@ -141,10 +142,7 @@ void command_status() {
   char current_branch[255];
   get_current_branch(current_branch);
   printf("# On branch %s\n", current_branch);
-  printf("# Changes to be committed:\n");
-  printf("#\n");
-  printf("# Untracked files:\n");
-  printf("#\n");
+  print_index_contents();
 }
 
 
@@ -217,7 +215,6 @@ void command_checkout_single_entry(char* filename) {
   hash_found = get_hash_from_index(object_hash, filename);
 
   if(!hash_found) {
-    printf("File not found in index, trying HEAD...\n");
     hash_found = get_hash_from_head(object_hash, filename);
   }
 
@@ -357,10 +354,11 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   bool hash_found = false;
   int chars_to_read;
 
+
   char branch_name[1024];
   
   get_current_branch(branch_name);
-
+  
   char branch_head_filename[1024];
   sprintf(branch_head_filename, ".mit/%s", branch_name);
   fprintf(stderr, "Current HEAD filename: [%s]\n", branch_head_filename);
@@ -379,9 +377,40 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
         hash_found = true;
       }
     }
+
     fclose(file);
     file = NULL;
   }
 
   return hash_found;
+}
+
+
+void print_index_contents() {
+  FILE* file;
+  int buffer_size = 1024;
+  int prefix_length = 9;
+  char buffer[buffer_size];
+  char index_entry_filename[1024];
+  int line_length;
+  bool hash_found = false;
+  int chars_to_read;
+
+  char branch_name[1024];
+  
+  if (!(file = fopen(".mit/index","r"))) {
+    printf("Nothing to commit\n", branch_name);
+  } else {
+    printf("# Changes to be committed:\n#\n");
+    while(fgets(buffer, buffer_size, file)) {
+      line_length = strlen(buffer);
+      chars_to_read = line_length - prefix_length - 1 - 40 - 1;
+      strncpy(index_entry_filename, &buffer[9], chars_to_read);
+      index_entry_filename[chars_to_read] = '\0';
+      printf("#\tfile:\t%s\n", index_entry_filename);
+    }
+    printf("#\n");
+    fclose(file);
+    file = NULL;
+  }
 }
