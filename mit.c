@@ -14,6 +14,7 @@ void get_current_branch(char* branch_name);
 void command_init();
 void command_status();
 void command_add(int num_args, char** args);
+void command_add_single_entry(char* object_hash, char* filename);
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
@@ -117,8 +118,12 @@ void command_add(int num_opts, char** opts) {
   int c = 0;
   char object_hash[41];
   for(c = 0; c < num_opts; c++) {
-    store_blob(object_hash, opts[c]);
+    command_add_single_entry(object_hash, opts[c]);
   }
+}
+
+void command_add_single_entry(char* object_hash, char* filename) {
+    store_blob(object_hash, filename);
 }
 
 void store_blob(char* object_hash, const char* filename) {
