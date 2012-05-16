@@ -333,7 +333,6 @@ bool get_hash_from_index(char* object_hash, const char* filename) {
     }
   }
 
-  object_hash = NULL;
   fclose(file);
   file = NULL;
 
@@ -353,27 +352,24 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   char branch_name[1024];
   
   get_current_branch(branch_name);
-  printf("Attempting to retrieve object hash from branch: %s", branch_name);
 
-
-  /*
-  if (!(file = fopen("./.mit/index","r"))) {
-    fprintf(stderr, "Unable to read the index file");
-  }
-
-  while(fgets(buffer, buffer_size, file)) {
-    line_length = strlen(buffer);
-    strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
-    if(strcmp(index_entry_filename, filename) == 0) {
-      strncpy(object_hash, &buffer[line_length - 41], 40);
-      hash_found = true;
+  char branch_head_filename[1024];
+  sprintf(branch_head_filename, "./mit/%s", branch_name);
+  
+  if (!(file = fopen(branch_head_filename,"r"))) {
+    fprintf(stderr, "Branch not found: %s", branch_name);
+  } else {
+    while(fgets(buffer, buffer_size, file)) {
+      line_length = strlen(buffer);
+      strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
+      if(strcmp(index_entry_filename, filename) == 0) {
+        strncpy(object_hash, &buffer[line_length - 41], 40);
+        hash_found = true;
+      }
     }
+    fclose(file);
+    file = NULL;
   }
 
-  object_hash = NULL;
-  fclose(file);
-  file = NULL;
-
-  */
   return hash_found;
 }
