@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <stdbool.h>
 
 #include "sha1.h"
 
@@ -17,9 +18,13 @@ void command_add(int num_args, char** args);
 void command_add_single_entry(char* object_hash, char* filename);
 void command_restore(int num_args, char** args);
 void command_restore_single_entry(char* object_hash, char* args);
+void command_checkout(int num_args, char** args);
+void command_checkout_single_entry(char* filename);
 void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
+bool get_hash_from_index(char* object_hash, const char* filename);
+
 
 int main(int num_args, char** args) {
   if (num_args < 2) {
@@ -37,14 +42,12 @@ int main(int num_args, char** args) {
   if(strcmp(next_command, "status") == 0) {
     command_status();
   } else if(strcmp(next_command, "add") == 0) {
-    char** add_opts = NULL;
-    if(num_args < 2) {
-      add_opts = &args[2];
-    }
     command_add(num_args-2, &args[2]);
   } else if(strcmp(next_command, "restore") == 0) {
     command_restore(num_args-2, &args[2]);
-  }else {
+  } else if(strcmp(next_command, "checkout") == 0) {
+    command_checkout(num_args-2, &args[2]);
+  } else {
     printf("%s is not a mit command!\n", next_command);
     usage();
   }
@@ -77,7 +80,7 @@ void usage() {
 void assert_mit_repo() {
   DIR* mit_repo = opendir("./.mit");
   if(!mit_repo) {
-    printf("This is not a .mit repository!\n");
+    fprintf(stderr, "This is not a .mit repository!\n");
     exit(-1);
   }
   closedir(mit_repo);
@@ -193,6 +196,49 @@ void command_restore_single_entry(char* object_hash, char* filename) {
 }
 
 
+void command_checkout(int num_args, char** args) {
+  int c = 0;
+  if(num_args == 0) {
+    printf("Too few arguments!\n");
+    printf("usage: mit checkout <filename>\n");
+    exit(-1);
+  }
+  command_checkout_single_entry(args[0]);
+}
+
+
+void command_checkout_single_entry(char* filename) {
+  char object_filename[255];
+  char object_hash[41];
+  bool hash_found = false;
+  hash_found = get_hash_from_index(object_hash, filename);
+
+  if(!hash_found) {
+    printf("File not in index\n");
+    exit(-1);
+  }
+
+  sprintf(object_filename, ".mit/objects/%s", object_hash);
+  FILE* blob_file = fopen(object_filename, "r");
+  if(!blob_file) {
+    printf("The file is not currently under version control!\n");
+    return;
+  }
+
+  FILE* target_file = fopen(filename, "w");
+  char        c;                  /* Character read from file      */
+
+  c = fgetc(blob_file);
+  while(!feof(blob_file)) {
+    fputc(c, target_file);
+    c = fgetc(blob_file);
+  }
+
+  fclose(target_file);
+  fclose(blob_file);
+}
+
+
 void store_blob(char* object_hash, const char* filename) {
   FILE* file;
   if (!(file = fopen(filename,"rb"))) {
@@ -210,7 +256,7 @@ void store_blob(char* object_hash, const char* filename) {
             filename);
   }
   printf("Adding %s (%s) to the index\n", filename, object_hash);
-  fprintf(index_file, "Filename\t%s\t%s\n", filename, object_hash);
+  fprintf(index_file, "Filename %s %s\n", filename, object_hash);
   fclose(index_file);
 }
 
@@ -258,4 +304,34 @@ void get_object_hash(char* object_hash, FILE* data) {
   }
 
   rewind(data);
+}
+
+
+bool get_hash_from_index(char* object_hash, const char* filename) {
+  FILE* file;
+  int buffer_size = 1024;
+  int prefix_length = 9;
+  char buffer[buffer_size];
+  char index_entry_filename[1024];
+  int line_length;
+  bool hash_found = false;
+
+  if (!(file = fopen("./.mit/index","r"))) {
+    fprintf(stderr, "Unable to read the index file");
+  }
+
+  while(fgets(buffer, buffer_size, file)) {
+    line_length = strlen(buffer);
+    strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
+    if(strcmp(index_entry_filename, filename) == 0) {
+      strncpy(object_hash, &buffer[line_length - 41], 40);
+      hash_found = true;
+    }
+  }
+
+  object_hash = NULL;
+  fclose(file);
+  file = NULL;
+
+  return hash_found;
 }
