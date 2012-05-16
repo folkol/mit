@@ -364,11 +364,9 @@ bool get_hash_from_head(char* object_hash, const char* filename) {
   
   char branch_head_filename[1024];
   sprintf(branch_head_filename, ".mit/%s", branch_name);
-  fprintf(stderr, "Current HEAD filename: [%s]\n", branch_head_filename);
   
   if (!(file = fopen(branch_head_filename,"r"))) {
-    fprintf(stderr, "Branch not found: %s\n", branch_name);
-    printf("Error opening file [%s]: %s\n", branch_head_filename, strerror(errno));
+    
   } else {
     while(fgets(buffer, buffer_size, file)) {
       line_length = strlen(buffer);
@@ -398,37 +396,59 @@ void print_index_contents() {
   int line_length;
   bool hash_found = false;
   int chars_to_read;
+  char* current_index_content[41];
+  char* current_head_hash[41];
+  bool hash_found_in_head = false;
+  bool print_header = true;
 
   char branch_name[1024];
   
   if (!(file = fopen(".mit/index","r"))) {
-    printf("Nothing to commit\n", branch_name);
   } else {
-    printf("# Changes to be committed:\n#\n");
     while(fgets(buffer, buffer_size, file)) {
       line_length = strlen(buffer);
       chars_to_read = line_length - prefix_length - 1 - 40 - 1;
       strncpy(index_entry_filename, &buffer[9], chars_to_read);
       index_entry_filename[chars_to_read] = '\0';
-      printf("#\tfile:\t%s\n", index_entry_filename);
+      strncpy(current_index_content, &buffer[line_length - 41], 40);
+      hash_found_in_head = get_hash_from_head(current_head_hash, index_entry_filename);
+      if(hash_found_in_head) {
+        if(strcmp(current_index_content, current_head_hash) == 0) {
+          
+        } else {
+          if(print_header) {
+            printf("# Changes to be committed:\n#\n");
+            print_header = false;
+          }
+          printf("#\tModified file:\t%s\n", index_entry_filename);
+        }
+      } else {
+        if(print_header) {
+          printf("# Changes to be committed:\n#\n");
+          print_header = false;
+        }
+        printf("#\tNew file:\t%s\n", index_entry_filename);
+      }
     }
     printf("#\n");
     fclose(file);
     file = NULL;
   }
-}
 
+  if(print_header) {
+    printf("Nothing to commit\n", branch_name);
+  }
+}
 
 
 void command_commit() {
   char head_filename[1024];
   char branch_name[1024];
-  char branch_head_filename[1024];  
+  char branch_head_filename[1024];
 
   get_current_branch(branch_name);
 
   sprintf(branch_head_filename, ".mit/%s", branch_name);
-  fprintf(stderr, "Current HEAD filename: [%s]\n", branch_head_filename);
 
   FILE* index_file = fopen(".mit/index", "r");
   if(!index_file) {
