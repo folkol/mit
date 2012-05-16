@@ -24,7 +24,7 @@ void store_blob(char* object_hash, const char* filename);
 void store_object(char* object_hash, FILE* file);
 void get_object_hash(char* object_hash, FILE* data);
 bool get_hash_from_index(char* object_hash, const char* filename);
-
+bool get_hash_from_head(char* object_hash, const char* filename);
 
 int main(int num_args, char** args) {
   if (num_args < 2) {
@@ -214,14 +214,18 @@ void command_checkout_single_entry(char* filename) {
   hash_found = get_hash_from_index(object_hash, filename);
 
   if(!hash_found) {
-    printf("File not in index\n");
-    exit(-1);
+    get_hash_from_head(object_hash, filename);
+  }
+
+  if(!hash_found) {
+    printf("The file is not currently under version control!\n");
+    return;
   }
 
   sprintf(object_filename, ".mit/objects/%s", object_hash);
   FILE* blob_file = fopen(object_filename, "r");
   if(!blob_file) {
-    printf("The file is not currently under version control!\n");
+    printf("A object hash was found, but we could not open the file. Object store might be corrupted!\n");
     return;
   }
 
@@ -333,5 +337,43 @@ bool get_hash_from_index(char* object_hash, const char* filename) {
   fclose(file);
   file = NULL;
 
+  return hash_found;
+}
+
+
+bool get_hash_from_head(char* object_hash, const char* filename) {
+  FILE* file;
+  int buffer_size = 1024;
+  int prefix_length = 9;
+  char buffer[buffer_size];
+  char index_entry_filename[1024];
+  int line_length;
+  bool hash_found = false;
+
+  char branch_name[1024];
+  
+  get_current_branch(branch_name);
+  printf("Attempting to retrieve object hash from branch: %s", branch_name);
+
+
+  /*
+  if (!(file = fopen("./.mit/index","r"))) {
+    fprintf(stderr, "Unable to read the index file");
+  }
+
+  while(fgets(buffer, buffer_size, file)) {
+    line_length = strlen(buffer);
+    strncpy(index_entry_filename, &buffer[9], line_length - prefix_length - 1 - 40 - 1);
+    if(strcmp(index_entry_filename, filename) == 0) {
+      strncpy(object_hash, &buffer[line_length - 41], 40);
+      hash_found = true;
+    }
+  }
+
+  object_hash = NULL;
+  fclose(file);
+  file = NULL;
+
+  */
   return hash_found;
 }
