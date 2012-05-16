@@ -128,7 +128,7 @@ bool get_hash_from_index(char* object_hash, const char* filename) {
   int chars_to_read;
 
   if (!(file = fopen("./.mit/index","r"))) {
-    fprintf(stderr, "Unable to read the index file\n");
+
   } else {
     while(fgets(buffer, buffer_size, file)) {
       line_length = strlen(buffer);
